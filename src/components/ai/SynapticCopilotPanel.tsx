@@ -3,47 +3,57 @@
 import React, { useState } from 'react';
 import { useZettelStore } from '@/lib/store';
 import { useNotes, useCreateNote } from '@/lib/hooks/useNotes';
-import { Sparkles, Brain, Wand2, MessageSquare, Send, RefreshCw, Copy, Check } from 'lucide-react';
-import confetti from 'canvas-confetti';
+import { searchSimilarNotesAction } from '@/actions/vectorSearch';
+import { 
+  Sparkles, Brain, Wand2, RefreshCw, Check, Copy, 
+  MessageSquare, Send, Database
+} from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import confetti from 'canvas-confetti';
 
 export default function SynapticCopilotPanel() {
-  const {
-    selectedNodeIds,
+  const { 
+    selectedNodeIds, 
     clearNodeSelection,
-    isAiSynthesizing,
-    setIsAiSynthesizing,
-    synthesisResult,
-    setSynthesisResult,
+    setActiveNoteId,
   } = useZettelStore();
 
   const { data: notes = [] } = useNotes();
   const createNoteMutation = useCreateNote();
 
   const [activeTab, setActiveTab] = useState<'synthesis' | 'chat'>('synthesis');
+  const [isAiSynthesizing, setIsAiSynthesizing] = useState(false);
+  const [synthesisResult, setSynthesisResult] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  // Neural RAG Chat State
   const [chatQuery, setChatQuery] = useState('');
-  const [chatHistory, setChatHistory] = useState<Array<{ role: 'user' | 'assistant'; text: string }>>([
+  const [isSearchingVector, setIsSearchingVector] = useState(false);
+  const [chatHistory, setChatHistory] = useState<Array<{ role: 'user' | 'assistant'; text: string; sources?: string[] }>>([
     {
       role: 'assistant',
-      text: 'Salam! Saya adalah Neural Copilot. Tanyakan apa saja tentang jaringan konsep di Zettelkasten Anda, atau pilih beberapa catatan untuk saya sintesiskan menjadi gagasan baru.',
+      text: 'Halo! Saya AI Synaptic Copilot yang terhubung dengan **PostgreSQL pgvector (768-dim HNSW)**. Anda bisa bertanya tentang seluruh isi ide catatan Anda atau memilih beberapa catatan di graf untuk disintesis menjadi wawasan baru.',
     },
   ]);
-  const [copied, setCopied] = useState(false);
 
   const selectedNotes = notes.filter((n) => selectedNodeIds.includes(n.id));
 
-  // Run Multi-Node Synthesis
-  const handleSynthesize = async () => {
+  const handleSynthesize = () => {
     if (selectedNotes.length < 2) return;
     setIsAiSynthesizing(true);
     setSynthesisResult(null);
 
     setTimeout(() => {
-      const titles = selectedNotes.map((n) => `**${n.title}** (\`[[${n.id}]]\`)`).join(' dan ');
-      const synthesizedText = `### 🌟 Sintesis Konsep Muncul (*Emergent Synthesis*)\n\nPenggabungan antara ${titles} menghasilkan premis baru:\n\n1. **Dialektika Utama**: Terdapat konvergensi struktural di mana sifat atomik ide memungkinkan terbentuknya ruang laten semantik yang beroperasi menyerupai hukum plastisitas sinaptik Hebbian.\n2. **Hipotesis Baru**: *Dapatkah kita memperlakukan penomoran Luhmann sebagai koordinat topologis dalam ruang embedding multi-dimensi untuk navigasi intuisi AI?*\n\n> *Ide yang saling terhubung melahirkan lompatan kognitif di luar jumlah bagian-bagiannya.*`;
+      const titles = selectedNotes.map((n) => `[[${n.id}]] "${n.title}"`).join(' dan ');
+      const keyPoints = selectedNotes
+        .map((n) => `- **${n.title}**: ${n.content.slice(0, 120)}...`)
+        .join('\n');
 
-      setSynthesisResult(synthesizedText);
+      const result = `### 💡 Sintesis Gagasan Emergen\n\n**Persimpangan Konsep antara:** ${titles}\n\n${keyPoints}\n\n---\n\n#### ⚡ Hipotesis Orisinal:\nKetika prinsip-prinsip di atas dipadukan dalam satu sistem heterarkis, muncul dinamika baru di mana proses belajar dan penataan pengetahuan tidak lagi bersifat linier. Struktur saraf yang saling beresonansi memungkinkan transfer gagasan lintas domain secara spontan.\n\n*Rekomendasi Eksplorasi Lanjutan:* Hubungkan sintesis ini dengan kluster pengetahuan aktif Anda.`;
+
+      setSynthesisResult(result);
       setIsAiSynthesizing(false);
+
       confetti({
         particleCount: 50,
         spread: 60,
@@ -57,44 +67,62 @@ export default function SynapticCopilotPanel() {
     createNoteMutation.mutate({
       title: `Sintesis: ${selectedNotes.map((n) => n.title).slice(0, 2).join(' + ')}`,
       content: `${synthesisResult}\n\n**Sumber:**\n${selectedNotes.map((n) => `- [[${n.id}]]`).join('\n')}`,
-      tags: ['synthesis', 'ai-generated', 'emergent'],
+      tags: ['synthesis', 'ai-generated', 'pgvector'],
       cluster: 'Cognition & Creativity',
     });
     setSynthesisResult(null);
     clearNodeSelection();
   };
 
-  const handleSendChat = () => {
-    if (!chatQuery.trim()) return;
-    const userMsg = chatQuery;
+  const handleSendChat = async () => {
+    if (!chatQuery.trim() || isSearchingVector) return;
+    const userMsg = chatQuery.trim();
     setChatQuery('');
+    setIsSearchingVector(true);
 
     const newHistory = [...chatHistory, { role: 'user' as const, text: userMsg }];
     setChatHistory(newHistory);
 
-    setTimeout(() => {
-      const matchedNotes = notes.filter((n) =>
-        n.title.toLowerCase().includes(userMsg.toLowerCase()) ||
-        n.content.toLowerCase().includes(userMsg.toLowerCase()) ||
-        n.tags.some((t) => t.toLowerCase().includes(userMsg.toLowerCase()))
-      );
+    try {
+      // High-performance pgvector Cosine similarity query using HNSW index
+      const matched = await searchSimilarNotesAction(userMsg, 3);
 
       let reply = '';
-      if (matchedNotes.length > 0) {
-        reply = `Berdasarkan catatan Anda di Zettelkasten, konsep ini terkait erat dengan **${matchedNotes[0].title}** ([[${matchedNotes[0].id}]]). \n\n*Ringkasan:* ${matchedNotes[0].content.slice(0, 180)}...`;
+      if (matched.length > 0 && matched[0].similarity > 0.05) {
+        const topMatch = matched[0];
+        reply = `Berdasarkan pencarian vektor **pgvector (HNSW Index)** di database PostgreSQL Anda:\n\nPertanyaan Anda sangat beresonansi dengan catatan **[${topMatch.title}](#zettel-${topMatch.id})** (\`[[${topMatch.id}]]\`, Skor Kemiripan Vektor: **${Math.round(topMatch.similarity * 100)}%**).\n\n> *"${topMatch.content.slice(0, 220).replace(/\n/g, ' ')}..."*\n\n${
+          matched.length > 1
+            ? `\n**Catatan Terkait Lainnya:**\n` +
+              matched
+                .slice(1)
+                .map((m) => `- **[${m.title}](#zettel-${m.id})** (\`[[${m.id}]]\`, ${Math.round(m.similarity * 100)}% Match)`)
+                .join('\n')
+            : ''
+        }`;
       } else {
-        reply = `Berdasarkan seluruh jaringan saraf Zettelkasten (${notes.length} catatan), konsep '${userMsg}' dapat dihubungkan secara metaforis dengan prinsip keterikatan ide dan *emergent complexity*. Cobalah membuat catatan atomik baru untuk konsep ini!`;
+        reply = `Berdasarkan pemindaian indeks vektor **pgvector** di database PostgreSQL (${notes.length} catatan), query *"${userMsg}"* belum memiliki catatan spesifik yang identik. \n\nCobalah membuat catatan atomik baru untuk konsep ini agar dapat otomatis terindeks ke dalam ruang vektor 768-dimensi!`;
       }
 
       setChatHistory([...newHistory, { role: 'assistant', text: reply }]);
-    }, 800);
+    } catch (err) {
+      console.error('Neural RAG error:', err);
+      setChatHistory([
+        ...newHistory,
+        {
+          role: 'assistant',
+          text: 'Terjadi kesalahan saat memindai indeks pgvector. Pastikan database PostgreSQL tetap terhubung.',
+        },
+      ]);
+    } finally {
+      setIsSearchingVector(false);
+    }
   };
 
   return (
-    <div className="w-96 h-full flex flex-col bg-[var(--sidebar-bg)] border-l border-[var(--card-border)] text-[var(--foreground)] select-text transition-colors duration-300">
+    <div className="h-full flex flex-col bg-[var(--card)] text-[var(--foreground)] transition-colors duration-300">
       {/* Header Tabs */}
-      <div className="flex items-center justify-between p-3 border-b border-[var(--card-border)] bg-[var(--topbar-bg)]">
-        <div className="flex items-center gap-1 bg-[var(--input-bg)] p-1 rounded-lg border border-[var(--card-border)]">
+      <div className="p-3 border-b border-[var(--card-border)] flex items-center justify-between">
+        <div className="flex bg-[var(--input-bg)] p-0.5 rounded-lg border border-[var(--card-border)]">
           <button
             onClick={() => setActiveTab('synthesis')}
             className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition ${
@@ -111,13 +139,13 @@ export default function SynapticCopilotPanel() {
             }`}
           >
             <MessageSquare className="w-3.5 h-3.5" />
-            <span>Neural RAG</span>
+            <span>Neural RAG (pgvector)</span>
           </button>
         </div>
 
-        <div className="flex items-center gap-1 text-[11px] text-purple-500 font-mono">
-          <Sparkles className="w-3.5 h-3.5 animate-spin" style={{ animationDuration: '6s' }} />
-          <span>AI Copilot</span>
+        <div className="flex items-center gap-1.5 text-[11px] text-cyan-600 dark:text-cyan-400 font-mono">
+          <Database className="w-3.5 h-3.5 text-cyan-500" />
+          <span className="font-semibold">pgvector 768d</span>
         </div>
       </div>
 
@@ -239,7 +267,33 @@ export default function SynapticCopilotPanel() {
                       : 'bg-[var(--card)] border border-[var(--card-border)] text-[var(--foreground)] rounded-bl-none shadow-sm'
                   }`}
                 >
-                  <ReactMarkdown>{msg.text}</ReactMarkdown>
+                  <ReactMarkdown
+                    components={{
+                      a: ({ href, children }) => {
+                        if (href?.startsWith('#zettel-')) {
+                          const targetId = href.replace('#zettel-', '');
+                          return (
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setActiveNoteId(targetId);
+                              }}
+                              className="text-cyan-500 underline font-semibold hover:text-cyan-400"
+                            >
+                              {children}
+                            </button>
+                          );
+                        }
+                        return (
+                          <a href={href} target="_blank" rel="noopener noreferrer" className="text-cyan-500 underline">
+                            {children}
+                          </a>
+                        );
+                      },
+                    }}
+                  >
+                    {msg.text}
+                  </ReactMarkdown>
                 </div>
               </div>
             ))}
@@ -253,12 +307,14 @@ export default function SynapticCopilotPanel() {
                 value={chatQuery}
                 onChange={(e) => setChatQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSendChat()}
-                placeholder="Tanya seluruh Zettelkasten..."
-                className="flex-1 bg-transparent px-2 text-xs text-[var(--foreground)] focus:outline-none placeholder-[var(--muted)]"
+                placeholder="Tanya seluruh Zettelkasten via pgvector HNSW..."
+                disabled={isSearchingVector}
+                className="flex-1 bg-transparent px-2 text-xs text-[var(--foreground)] focus:outline-none placeholder-[var(--muted)] disabled:opacity-50"
               />
               <button
                 onClick={handleSendChat}
-                className="p-1.5 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white transition"
+                disabled={isSearchingVector || !chatQuery.trim()}
+                className="p-1.5 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 rounded-lg text-white transition"
               >
                 <Send className="w-3.5 h-3.5" />
               </button>
