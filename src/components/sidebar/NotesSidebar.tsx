@@ -38,9 +38,9 @@ export default function NotesSidebar() {
   });
 
   return (
-    <aside className="w-80 h-full flex flex-col bg-[var(--sidebar-bg)] border-r border-[var(--card-border)] text-[var(--foreground)] transition-colors duration-300">
+    <aside className="w-80 flex-shrink-0 h-full flex flex-col bg-[var(--sidebar-bg)] border-r border-[var(--card-border)] text-[var(--foreground)] transition-colors duration-300">
       {/* Brand & Action Header */}
-      <div className="p-4 border-b border-[var(--card-border)] flex items-center justify-between">
+      <div className="p-4 border-b border-[var(--card-border)] flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-cyan-500 to-purple-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
             <Brain className="w-4 h-4 text-white" />
@@ -62,7 +62,7 @@ export default function NotesSidebar() {
       </div>
 
       {/* Search Bar */}
-      <div className="p-3 border-b border-[var(--card-border)]">
+      <div className="p-3 border-b border-[var(--card-border)] flex-shrink-0">
         <div className="relative">
           <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
           <input
@@ -107,7 +107,7 @@ export default function NotesSidebar() {
       </div>
 
       {/* Notes List */}
-      <div className="flex-1 overflow-y-auto p-2 space-y-1">
+      <div className="flex-1 min-h-0 overflow-y-auto p-2 space-y-1">
         {filteredNotes.length === 0 ? (
           <div className="text-center py-10 text-[var(--muted)] text-xs">
             <p>Tidak ada catatan ditemukan</p>
@@ -166,7 +166,7 @@ export default function NotesSidebar() {
       </div>
 
       {/* Footer Info */}
-      <div className="p-3 border-t border-[var(--card-border)] bg-[var(--sidebar-bg)] text-[11px] text-[var(--muted)] flex items-center justify-between">
+      <div className="p-3 border-t border-[var(--card-border)] bg-[var(--sidebar-bg)] text-[11px] text-[var(--muted)] flex items-center justify-between flex-shrink-0">
         <span className="flex items-center gap-1 text-cyan-600 dark:text-cyan-400 font-medium">
           <Sparkles className="w-3 h-3" /> PostgreSQL Heterarchy
         </span>

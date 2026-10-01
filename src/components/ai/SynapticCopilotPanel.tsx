@@ -29,7 +29,7 @@ export default function SynapticCopilotPanel() {
   // Neural RAG Chat State
   const [chatQuery, setChatQuery] = useState('');
   const [isSearchingVector, setIsSearchingVector] = useState(false);
-  const [chatHistory, setChatHistory] = useState<Array<{ role: 'user' | 'assistant'; text: string; sources?: string[] }>>([
+  const [chatHistory, setChatHistory] = useState<Array<{ role: 'user' | 'assistant'; text: string }>>([
     {
       role: 'assistant',
       text: 'Halo! Saya AI Synaptic Copilot yang terhubung dengan **PostgreSQL pgvector (768-dim HNSW)**. Anda bisa bertanya tentang seluruh isi ide catatan Anda atau memilih beberapa catatan di graf untuk disintesis menjadi wawasan baru.',
@@ -119,9 +119,9 @@ export default function SynapticCopilotPanel() {
   };
 
   return (
-    <div className="h-full flex flex-col bg-[var(--card)] text-[var(--foreground)] transition-colors duration-300">
+    <aside className="w-96 flex-shrink-0 h-full flex flex-col bg-[var(--card)] border-l border-[var(--card-border)] text-[var(--foreground)] transition-colors duration-300 z-10">
       {/* Header Tabs */}
-      <div className="p-3 border-b border-[var(--card-border)] flex items-center justify-between">
+      <div className="p-3 border-b border-[var(--card-border)] flex items-center justify-between flex-shrink-0">
         <div className="flex bg-[var(--input-bg)] p-0.5 rounded-lg border border-[var(--card-border)]">
           <button
             onClick={() => setActiveTab('synthesis')}
@@ -151,7 +151,7 @@ export default function SynapticCopilotPanel() {
 
       {/* Tab 1: Synthesis Engine */}
       {activeTab === 'synthesis' && (
-        <div className="flex-1 overflow-y-auto p-4 flex flex-col justify-between">
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col justify-between">
           <div className="space-y-4">
             <div className="p-3.5 rounded-xl bg-purple-500/10 border border-purple-500/30 text-xs text-[var(--foreground)]">
               <h4 className="font-semibold flex items-center gap-1.5 text-purple-600 dark:text-purple-300 mb-1">
@@ -252,9 +252,9 @@ export default function SynapticCopilotPanel() {
 
       {/* Tab 2: Neural RAG Chat */}
       {activeTab === 'chat' && (
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3">
             {chatHistory.map((msg, i) => (
               <div
                 key={i}
@@ -278,14 +278,14 @@ export default function SynapticCopilotPanel() {
                                 e.preventDefault();
                                 setActiveNoteId(targetId);
                               }}
-                              className="text-cyan-500 underline font-semibold hover:text-cyan-400"
+                              className="text-cyan-500 underline font-semibold hover:text-cyan-400 inline"
                             >
                               {children}
                             </button>
                           );
                         }
                         return (
-                          <a href={href} target="_blank" rel="noopener noreferrer" className="text-cyan-500 underline">
+                          <a href={href} target="_blank" rel="noopener noreferrer" className="text-cyan-500 underline inline">
                             {children}
                           </a>
                         );
@@ -300,7 +300,7 @@ export default function SynapticCopilotPanel() {
           </div>
 
           {/* Chat Input */}
-          <div className="p-3 border-t border-[var(--card-border)] bg-[var(--card)]">
+          <div className="p-3 border-t border-[var(--card-border)] bg-[var(--card)] flex-shrink-0">
             <div className="flex items-center gap-2 bg-[var(--input-bg)] border border-[var(--card-border)] rounded-xl p-1.5 focus-within:border-cyan-500">
               <input
                 type="text"
@@ -322,6 +322,6 @@ export default function SynapticCopilotPanel() {
           </div>
         </div>
       )}
-    </div>
+    </aside>
   );
 }

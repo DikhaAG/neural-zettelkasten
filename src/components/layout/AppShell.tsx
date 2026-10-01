@@ -34,7 +34,7 @@ export default function AppShell({ initialNotes }: { initialNotes: Note[] }) {
   return (
     <div className="flex flex-col h-screen w-screen bg-[var(--background)] text-[var(--foreground)] overflow-hidden select-none transition-colors duration-300">
       {/* Universal Top Bar */}
-      <header className="h-12 border-b border-[var(--card-border)] bg-[var(--topbar-bg)] backdrop-blur-md px-4 flex items-center justify-between z-20">
+      <header className="h-12 border-b border-[var(--card-border)] bg-[var(--topbar-bg)] backdrop-blur-md px-4 flex items-center justify-between z-20 flex-shrink-0">
         {/* Left Status Pulse */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-[var(--input-bg)] border border-[var(--card-border)] text-[11px] text-[var(--muted)]">
@@ -45,7 +45,7 @@ export default function AppShell({ initialNotes }: { initialNotes: Note[] }) {
             <span className="text-slate-500">•</span>
             <span className="flex items-center gap-1 text-[10px] text-cyan-600 dark:text-cyan-400 font-mono">
               <Database className="w-3 h-3" />
-              PostgreSQL (SSR Stream)
+              pgvector HNSW
             </span>
           </div>
         </div>
@@ -120,31 +120,31 @@ export default function AppShell({ initialNotes }: { initialNotes: Note[] }) {
       </header>
 
       {/* Main Content Workspace Layout */}
-      <main className="flex-1 flex overflow-hidden">
+      <main className="flex-1 min-h-0 flex overflow-hidden w-full relative">
         {/* Left Sidebar */}
         <NotesSidebar />
 
         {/* Central Work Area according to View Mode */}
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 min-w-0 h-full flex overflow-hidden">
           {viewMode === 'split' && (
             <>
-              <div className="w-1/2 h-full border-r border-[var(--card-border)]">
+              <div className="w-1/2 min-w-0 h-full border-r border-[var(--card-border)]">
                 <NeuralGraph />
               </div>
-              <div className="w-1/2 h-full">
+              <div className="w-1/2 min-w-0 h-full">
                 <AtomicEditor />
               </div>
             </>
           )}
 
           {viewMode === 'graph-only' && (
-            <div className="w-full h-full">
+            <div className="w-full min-w-0 h-full">
               <NeuralGraph />
             </div>
           )}
 
           {viewMode === 'editor-only' && (
-            <div className="w-full h-full">
+            <div className="w-full min-w-0 h-full">
               <AtomicEditor />
             </div>
           )}
