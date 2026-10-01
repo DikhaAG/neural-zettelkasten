@@ -2,20 +2,22 @@
 
 import React from 'react';
 import { useZettelStore } from '@/lib/store';
+import { useNotes, useCreateNote } from '@/lib/hooks/useNotes';
 import { Plus, Search, Brain, Network, Sparkles } from 'lucide-react';
 import { CLUSTER_COLORS } from '@/lib/initialData';
 
 export default function NotesSidebar() {
   const {
-    notes,
     activeNoteId,
     setActiveNoteId,
-    createNote,
     searchQuery,
     setSearchQuery,
     selectedCluster,
     setSelectedCluster,
   } = useZettelStore();
+
+  const { data: notes = [] } = useNotes();
+  const createNoteMutation = useCreateNote();
 
   const clusters = ['PKM Methodology', 'Systems & Complexity', 'Neuroscience & AI', 'Cognition & Creativity'];
 
@@ -46,7 +48,7 @@ export default function NotesSidebar() {
         </div>
 
         <button
-          onClick={() => createNote()}
+          onClick={() => createNoteMutation.mutate({})}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-medium shadow-md shadow-cyan-600/20 transition active:scale-95"
           title="Buat Catatan Baru"
         >
@@ -124,7 +126,7 @@ export default function NotesSidebar() {
                   <div className="flex items-center gap-1.5">
                     <span className="text-[10px] text-[var(--muted)] flex items-center gap-0.5">
                       <Network className="w-3 h-3 text-[var(--muted)]" />
-                      {note.explicitLinks.length}
+                      {(note.explicitLinks || []).length}
                     </span>
                     <span
                       className="w-2 h-2 rounded-full"
@@ -162,7 +164,7 @@ export default function NotesSidebar() {
       {/* Footer Info */}
       <div className="p-3 border-t border-[var(--card-border)] bg-[var(--sidebar-bg)] text-[11px] text-[var(--muted)] flex items-center justify-between">
         <span className="flex items-center gap-1 text-cyan-600 dark:text-cyan-400 font-medium">
-          <Sparkles className="w-3 h-3" /> Heterarchy Synapse
+          <Sparkles className="w-3 h-3" /> PostgreSQL Heterarchy
         </span>
         <span className="font-mono">{notes.length} Atom Nodes</span>
       </div>

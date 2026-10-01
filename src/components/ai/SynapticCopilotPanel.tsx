@@ -2,21 +2,23 @@
 
 import React, { useState } from 'react';
 import { useZettelStore } from '@/lib/store';
+import { useNotes, useCreateNote } from '@/lib/hooks/useNotes';
 import { Sparkles, Brain, Wand2, MessageSquare, Send, RefreshCw, Copy, Check } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import ReactMarkdown from 'react-markdown';
 
 export default function SynapticCopilotPanel() {
   const {
-    notes,
     selectedNodeIds,
     clearNodeSelection,
     isAiSynthesizing,
     setIsAiSynthesizing,
     synthesisResult,
     setSynthesisResult,
-    createNote,
   } = useZettelStore();
+
+  const { data: notes = [] } = useNotes();
+  const createNoteMutation = useCreateNote();
 
   const [activeTab, setActiveTab] = useState<'synthesis' | 'chat'>('synthesis');
   const [chatQuery, setChatQuery] = useState('');
@@ -52,7 +54,7 @@ export default function SynapticCopilotPanel() {
 
   const handleSaveSynthesisAsNote = () => {
     if (!synthesisResult) return;
-    createNote({
+    createNoteMutation.mutate({
       title: `Sintesis: ${selectedNotes.map((n) => n.title).slice(0, 2).join(' + ')}`,
       content: `${synthesisResult}\n\n**Sumber:**\n${selectedNotes.map((n) => `- [[${n.id}]]`).join('\n')}`,
       tags: ['synthesis', 'ai-generated', 'emergent'],

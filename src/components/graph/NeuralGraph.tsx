@@ -1,9 +1,12 @@
 'use client';
 
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { useZettelStore } from '@/lib/store';
+import { useNotes } from '@/lib/hooks/useNotes';
 import { GraphNode } from '@/types/zettel';
+import { computeGraphData } from '@/lib/graphUtils';
+import { discoverSynapticLinks } from '@/lib/synapse';
 import { RefreshCw, ZoomIn, ZoomOut, Zap } from 'lucide-react';
 
 // Dynamically import ForceGraph2D to prevent SSR hydration errors
@@ -24,18 +27,29 @@ export default function NeuralGraph() {
   const [hoveredNode, setHoveredNode] = useState<GraphNode | null>(null);
 
   const {
-    getGraphData,
     activeNoteId,
     setActiveNoteId,
     selectedNodeIds,
     toggleNodeSelection,
     synapticThreshold,
     setSynapticThreshold,
+    searchQuery,
+    selectedCluster,
     theme,
   } = useZettelStore();
 
+  const { data: notes = [] } = useNotes();
   const isDark = theme === 'dark';
-  const graphData = getGraphData();
+
+  const synapticLinks = useMemo(
+    () => discoverSynapticLinks(notes, synapticThreshold),
+    [notes, synapticThreshold]
+  );
+
+  const graphData = useMemo(
+    () => computeGraphData(notes, synapticLinks, searchQuery, selectedCluster, isDark),
+    [notes, synapticLinks, searchQuery, selectedCluster, isDark]
+  );
 
   // Resize observer
   useEffect(() => {
@@ -62,7 +76,7 @@ export default function NeuralGraph() {
         fgRef.current.zoom(2.5, 800);
       }
     }
-  }, [activeNoteId]);
+  }, [activeNoteId, graphData.nodes]);
 
   const handleNodeClick = useCallback(
     (node: any, event: MouseEvent) => {

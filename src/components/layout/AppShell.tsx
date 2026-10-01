@@ -1,16 +1,35 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useZettelStore } from '@/lib/store';
+import { useNotes, useCreateNote } from '@/lib/hooks/useNotes';
+import { Note } from '@/types/zettel';
+import { discoverSynapticLinks } from '@/lib/synapse';
 import NotesSidebar from '../sidebar/NotesSidebar';
 import NeuralGraph from '../graph/NeuralGraph';
 import AtomicEditor from '../editor/AtomicEditor';
 import SynapticCopilotPanel from '../ai/SynapticCopilotPanel';
-import { Network, Columns2, Edit, Sparkles, Plus, Sun, Moon } from 'lucide-react';
+import { Network, Columns2, Edit, Sparkles, Plus, Sun, Moon, Database } from 'lucide-react';
 
-export default function AppShell() {
-  const { viewMode, setViewMode, createNote, notes, synapticLinks, theme, toggleTheme } = useZettelStore();
+export default function AppShell({ initialNotes }: { initialNotes: Note[] }) {
+  const {
+    viewMode,
+    setViewMode,
+    theme,
+    toggleTheme,
+    synapticThreshold,
+  } = useZettelStore();
+  
   const [showAiPanel, setShowAiPanel] = useState(true);
+
+  // TanStack Query with Server Component initialData (0ms latency, zero waterfall)
+  const { data: notes = [] } = useNotes(initialNotes);
+  const createNoteMutation = useCreateNote();
+
+  const synapticLinks = useMemo(
+    () => discoverSynapticLinks(notes, synapticThreshold),
+    [notes, synapticThreshold]
+  );
 
   return (
     <div className="flex flex-col h-screen w-screen bg-[var(--background)] text-[var(--foreground)] overflow-hidden select-none transition-colors duration-300">
@@ -23,6 +42,11 @@ export default function AppShell() {
             <span className="font-mono font-medium text-[var(--foreground)]">{notes.length} Nodes</span>
             <span className="text-slate-500">•</span>
             <span className="font-mono text-purple-500 font-medium">{synapticLinks.length} Sinapsis</span>
+            <span className="text-slate-500">•</span>
+            <span className="flex items-center gap-1 text-[10px] text-cyan-600 dark:text-cyan-400 font-mono">
+              <Database className="w-3 h-3" />
+              PostgreSQL (SSR Stream)
+            </span>
           </div>
         </div>
 
@@ -86,7 +110,7 @@ export default function AppShell() {
           </button>
 
           <button
-            onClick={() => createNote()}
+            onClick={() => createNoteMutation.mutate({})}
             className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold shadow-md shadow-cyan-600/20 transition active:scale-95"
           >
             <Plus className="w-3.5 h-3.5" />

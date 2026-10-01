@@ -2,7 +2,9 @@
 
 import React, { useState, useMemo } from 'react';
 import { useZettelStore } from '@/lib/store';
+import { useNotes, useUpdateNote, useDeleteNote } from '@/lib/hooks/useNotes';
 import { Note } from '@/types/zettel';
+import { discoverSynapticLinks } from '@/lib/synapse';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -16,27 +18,33 @@ import { CLUSTER_COLORS } from '@/lib/initialData';
 
 export default function AtomicEditor() {
   const { 
-    notes, 
     activeNoteId, 
-    updateNote, 
-    deleteNote, 
     setActiveNoteId,
-    synapticLinks 
+    synapticThreshold,
   } = useZettelStore();
+
+  const { data: notes = [] } = useNotes();
+  const updateNoteMutation = useUpdateNote();
+  const deleteNoteMutation = useDeleteNote();
 
   const [editorMode, setEditorMode] = useState<'split' | 'edit' | 'preview'>('split');
   const [newTagInput, setNewTagInput] = useState('');
   const [showTagInput, setShowTagInput] = useState(false);
 
   const activeNote = useMemo(
-    () => notes.find((n) => n.id === activeNoteId) || null,
+    () => notes.find((n) => n.id === activeNoteId) || (notes.length > 0 ? notes[0] : null),
     [notes, activeNoteId]
+  );
+
+  const synapticLinks = useMemo(
+    () => discoverSynapticLinks(notes, synapticThreshold),
+    [notes, synapticThreshold]
   );
 
   // Incoming explicit backlinks (Notes that link to this note)
   const incomingExplicitNotes = useMemo(() => {
     if (!activeNote) return [];
-    return notes.filter((n) => n.id !== activeNote.id && n.explicitLinks.includes(activeNote.id));
+    return notes.filter((n) => n.id !== activeNote.id && (n.explicitLinks || []).includes(activeNote.id));
   }, [notes, activeNote]);
 
   // Incoming synaptic soft links
@@ -70,8 +78,9 @@ export default function AtomicEditor() {
 
   const handleAddTag = () => {
     if (newTagInput.trim() && !activeNote.tags.includes(newTagInput.trim())) {
-      updateNote(activeNote.id, {
-        tags: [...activeNote.tags, newTagInput.trim().toLowerCase()],
+      updateNoteMutation.mutate({
+        id: activeNote.id,
+        updates: { tags: [...activeNote.tags, newTagInput.trim().toLowerCase()] },
       });
       setNewTagInput('');
       setShowTagInput(false);
@@ -79,12 +88,12 @@ export default function AtomicEditor() {
   };
 
   const handleRemoveTag = (tagToRemove: string) => {
-    updateNote(activeNote.id, {
-      tags: activeNote.tags.filter((t) => t !== tagToRemove),
+    updateNoteMutation.mutate({
+      id: activeNote.id,
+      updates: { tags: activeNote.tags.filter((t) => t !== tagToRemove) },
     });
   };
 
-  // Convert [[wikilinks]] in markdown to clickable interactive elements
   const renderInteractiveMarkdown = (text: string) => {
     return text.replace(/\[\[(.*?)\]\]/g, (match, inner) => {
       const parts = inner.split('|');
@@ -144,7 +153,7 @@ export default function AtomicEditor() {
           </div>
 
           <button
-            onClick={() => deleteNote(activeNote.id)}
+            onClick={() => deleteNoteMutation.mutate(activeNote.id)}
             className="p-1.5 text-[var(--muted)] hover:text-red-500 hover:bg-red-500/10 rounded-lg transition"
             title="Hapus Catatan"
           >
@@ -158,7 +167,7 @@ export default function AtomicEditor() {
         <input
           type="text"
           value={activeNote.title}
-          onChange={(e) => updateNote(activeNote.id, { title: e.target.value })}
+          onChange={(e) => updateNoteMutation.mutate({ id: activeNote.id, updates: { title: e.target.value } })}
           placeholder="Judul Catatan Atomik..."
           className="w-full bg-transparent text-lg font-bold text-[var(--foreground)] placeholder-[var(--muted)] focus:outline-none focus:ring-0"
         />
@@ -169,7 +178,7 @@ export default function AtomicEditor() {
             <Folder className="w-3.5 h-3.5" />
             <select
               value={activeNote.cluster}
-              onChange={(e) => updateNote(activeNote.id, { cluster: e.target.value })}
+              onChange={(e) => updateNoteMutation.mutate({ id: activeNote.id, updates: { cluster: e.target.value } })}
               className="bg-[var(--input-bg)] border border-[var(--card-border)] rounded px-2 py-0.5 text-xs text-[var(--foreground)] focus:outline-none focus:border-cyan-500"
             >
               <option value="PKM Methodology">PKM Methodology</option>
@@ -234,7 +243,7 @@ export default function AtomicEditor() {
           <div className={`h-full flex flex-col ${editorMode === 'split' ? 'w-1/2 border-r border-[var(--card-border)]' : 'w-full'}`}>
             <textarea
               value={activeNote.content}
-              onChange={(e) => updateNote(activeNote.id, { content: e.target.value })}
+              onChange={(e) => updateNoteMutation.mutate({ id: activeNote.id, updates: { content: e.target.value } })}
               placeholder="Tulis ide atomik di sini... Ketik [[ID-Catatan]] untuk menautkan gagasan."
               className="flex-1 w-full p-6 bg-transparent text-[var(--foreground)] font-mono text-sm leading-relaxed resize-none focus:outline-none placeholder-[var(--muted)]"
             />
