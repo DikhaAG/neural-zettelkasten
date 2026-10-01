@@ -5,6 +5,7 @@ import { useZettelStore } from '@/lib/store';
 import { useNotes, useUpdateNote, useDeleteNote } from '@/lib/hooks/useNotes';
 import { Note } from '@/types/zettel';
 import { discoverSynapticLinks } from '@/lib/synapse';
+import { getClusterColor } from '@/lib/clusterColors';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -12,9 +13,8 @@ import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { 
   FileText, Link2, Tag, Folder, Plus, Trash2, 
-  Eye, Edit3, Split, ArrowUpRight, Sparkles, Check
+  Eye, Edit3, Split, ArrowUpRight, Sparkles, Check, X
 } from 'lucide-react';
-import { CLUSTER_COLORS } from '@/lib/initialData';
 
 export default function AtomicEditor() {
   const { 
@@ -30,11 +30,22 @@ export default function AtomicEditor() {
   const [editorMode, setEditorMode] = useState<'split' | 'edit' | 'preview'>('split');
   const [newTagInput, setNewTagInput] = useState('');
   const [showTagInput, setShowTagInput] = useState(false);
+  const [isAddingCustomCluster, setIsAddingCustomCluster] = useState(false);
+  const [customClusterInput, setCustomClusterInput] = useState('');
 
   const activeNote = useMemo(
     () => notes.find((n) => n.id === activeNoteId) || (notes.length > 0 ? notes[0] : null),
     [notes, activeNoteId]
   );
+
+  // Dynamic extraction of unique clusters from all notes
+  const availableClusters = useMemo(() => {
+    const set = new Set(notes.map((n) => n.cluster).filter(Boolean));
+    if (activeNote?.cluster) {
+      set.add(activeNote.cluster);
+    }
+    return Array.from(set);
+  }, [notes, activeNote]);
 
   const synapticLinks = useMemo(
     () => discoverSynapticLinks(notes, synapticThreshold),
@@ -65,26 +76,28 @@ export default function AtomicEditor() {
       }
     }
     return results.sort((a, b) => b.similarity - a.similarity);
-  }, [activeNote, synapticLinks, notes]);
+  }, [notes, synapticLinks, activeNote]);
 
   if (!activeNote) {
     return (
-      <div className="flex flex-col h-full items-center justify-center text-[var(--muted)] glass-panel p-6">
-        <FileText className="w-12 h-12 mb-3 text-[var(--muted)] opacity-60 animate-pulse-subtle" />
-        <p className="text-sm font-medium">Pilih catatan atomik untuk mulai membaca atau mengedit</p>
+      <div className="flex-1 flex flex-col items-center justify-center bg-[var(--background)] text-[var(--muted)] p-6">
+        <FileText className="w-12 h-12 mb-3 opacity-30 animate-pulse text-cyan-500" />
+        <p className="text-sm font-medium">Pilih catatan atau buat atomik baru di sidebar.</p>
       </div>
     );
   }
 
   const handleAddTag = () => {
-    if (newTagInput.trim() && !activeNote.tags.includes(newTagInput.trim())) {
+    if (!newTagInput.trim()) return;
+    const cleanTag = newTagInput.trim().replace(/^#/, '');
+    if (!activeNote.tags.includes(cleanTag)) {
       updateNoteMutation.mutate({
         id: activeNote.id,
-        updates: { tags: [...activeNote.tags, newTagInput.trim().toLowerCase()] },
+        updates: { tags: [...activeNote.tags, cleanTag] },
       });
-      setNewTagInput('');
-      setShowTagInput(false);
     }
+    setNewTagInput('');
+    setShowTagInput(false);
   };
 
   const handleRemoveTag = (tagToRemove: string) => {
@@ -94,76 +107,103 @@ export default function AtomicEditor() {
     });
   };
 
-  const renderInteractiveMarkdown = (text: string) => {
-    return text.replace(/\[\[(.*?)\]\]/g, (match, inner) => {
-      const parts = inner.split('|');
-      const targetId = parts[0].trim();
-      const label = parts[1]?.trim() || targetId;
-      return `[🔗 ${label}](#zettel-${targetId})`;
+  const handleSaveCustomCluster = () => {
+    if (!customClusterInput.trim()) {
+      setIsAddingCustomCluster(false);
+      return;
+    }
+    updateNoteMutation.mutate({
+      id: activeNote.id,
+      updates: { cluster: customClusterInput.trim() },
+    });
+    setCustomClusterInput('');
+    setIsAddingCustomCluster(false);
+  };
+
+  // Convert [[ID]] or [[Title]] into clickable links in Markdown
+  const renderInteractiveMarkdown = (content: string) => {
+    return content.replace(/\[\[(.*?)\]\]/g, (match, noteTarget) => {
+      const targetNote = notes.find(
+        (n) => n.id.toLowerCase() === noteTarget.toLowerCase() || n.title.toLowerCase() === noteTarget.toLowerCase()
+      );
+      if (targetNote) {
+        return `[${targetNote.title}](#zettel-${targetNote.id})`;
+      }
+      return match;
     });
   };
 
   return (
-    <div className="flex flex-col h-full bg-[var(--editor-bg)] backdrop-blur-xl border-l border-[var(--card-border)] overflow-hidden text-[var(--foreground)] transition-colors duration-300">
-      {/* Top Header Bar */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--card-border)] bg-[var(--card)]">
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-xs px-2 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/30 text-cyan-600 dark:text-cyan-400 font-semibold">
-            {activeNote.id}
-          </span>
-          <span className="text-xs text-[var(--muted)] flex items-center gap-1.5">
-            <span 
-              className="w-2 h-2 rounded-full inline-block" 
-              style={{ backgroundColor: CLUSTER_COLORS[activeNote.cluster] || '#94a3b8' }}
-            />
-            {activeNote.cluster}
-          </span>
-        </div>
-
-        {/* View Mode Switcher & Delete */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center bg-[var(--input-bg)] p-0.5 rounded-lg border border-[var(--card-border)] text-[var(--muted)]">
-            <button
-              onClick={() => setEditorMode('edit')}
-              className={`p-1.5 rounded-md transition ${
-                editorMode === 'edit' ? 'bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 font-bold' : 'hover:text-[var(--foreground)]'
-              }`}
-              title="Edit Mode"
-            >
-              <Edit3 className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => setEditorMode('split')}
-              className={`p-1.5 rounded-md transition ${
-                editorMode === 'split' ? 'bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 font-bold' : 'hover:text-[var(--foreground)]'
-              }`}
-              title="Split Mode"
-            >
-              <Split className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => setEditorMode('preview')}
-              className={`p-1.5 rounded-md transition ${
-                editorMode === 'preview' ? 'bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 font-bold' : 'hover:text-[var(--foreground)]'
-              }`}
-              title="Preview Mode"
-            >
-              <Eye className="w-3.5 h-3.5" />
-            </button>
+    <div className="flex-1 flex flex-col h-full bg-[var(--background)] overflow-hidden transition-colors duration-300">
+      {/* Top Meta Bar */}
+      <div className="p-4 border-b border-[var(--card-border)] bg-[var(--card)] flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-xs px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 font-semibold border border-cyan-500/30">
+              {activeNote.id}
+            </span>
+            <span className="text-xs text-[var(--muted)] flex items-center gap-1.5">
+              <span 
+                className="w-2.5 h-2.5 rounded-full inline-block shadow-sm" 
+                style={{ backgroundColor: getClusterColor(activeNote.cluster) }}
+              />
+              <span className="font-medium text-[var(--foreground)]">{activeNote.cluster}</span>
+            </span>
           </div>
 
-          <button
-            onClick={() => deleteNoteMutation.mutate(activeNote.id)}
-            className="p-1.5 text-[var(--muted)] hover:text-red-500 hover:bg-red-500/10 rounded-lg transition"
-            title="Hapus Catatan"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
+          {/* View Mode Switcher & Delete */}
+          <div className="flex items-center gap-2">
+            <div className="flex bg-[var(--input-bg)] rounded-lg p-0.5 border border-[var(--card-border)]">
+              <button
+                onClick={() => setEditorMode('edit')}
+                className={`p-1.5 rounded-md text-xs transition ${
+                  editorMode === 'edit'
+                    ? 'bg-cyan-600 text-white shadow-sm'
+                    : 'text-[var(--muted)] hover:text-[var(--foreground)]'
+                }`}
+                title="Editor Mode"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => setEditorMode('split')}
+                className={`p-1.5 rounded-md text-xs transition ${
+                  editorMode === 'split'
+                    ? 'bg-cyan-600 text-white shadow-sm'
+                    : 'text-[var(--muted)] hover:text-[var(--foreground)]'
+                }`}
+                title="Split Mode"
+              >
+                <Split className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => setEditorMode('preview')}
+                className={`p-1.5 rounded-md text-xs transition ${
+                  editorMode === 'preview'
+                    ? 'bg-cyan-600 text-white shadow-sm'
+                    : 'text-[var(--muted)] hover:text-[var(--foreground)]'
+                }`}
+                title="Preview Mode"
+              >
+                <Eye className="w-3.5 h-3.5" />
+              </button>
+            </div>
 
-      {/* Note Title & Metadata Controls */}
-      <div className="px-6 pt-4 pb-3 border-b border-[var(--card-border)] bg-[var(--card)]">
+            <button
+              onClick={() => {
+                if (confirm('Hapus catatan atomik ini?')) {
+                  deleteNoteMutation.mutate(activeNote.id);
+                }
+              }}
+              className="p-1.5 rounded-lg text-[var(--muted)] hover:text-red-500 hover:bg-red-500/10 transition"
+              title="Hapus Catatan"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Title Input */}
         <input
           type="text"
           value={activeNote.title}
@@ -172,22 +212,60 @@ export default function AtomicEditor() {
           className="w-full bg-transparent text-lg font-bold text-[var(--foreground)] placeholder-[var(--muted)] focus:outline-none focus:ring-0"
         />
 
-        {/* Tags & Cluster Selector */}
-        <div className="flex flex-wrap items-center gap-2 mt-3 text-xs">
-          <div className="flex items-center gap-1 text-[var(--muted)]">
+        {/* Dynamic Tags & Cluster Selector */}
+        <div className="flex flex-wrap items-center gap-2 mt-1 text-xs">
+          {/* Cluster Selector / Creator */}
+          <div className="flex items-center gap-1.5 text-[var(--muted)]">
             <Folder className="w-3.5 h-3.5" />
-            <select
-              value={activeNote.cluster}
-              onChange={(e) => updateNoteMutation.mutate({ id: activeNote.id, updates: { cluster: e.target.value } })}
-              className="bg-[var(--input-bg)] border border-[var(--card-border)] rounded px-2 py-0.5 text-xs text-[var(--foreground)] focus:outline-none focus:border-cyan-500"
-            >
-              <option value="PKM Methodology">PKM Methodology</option>
-              <option value="Systems & Complexity">Systems & Complexity</option>
-              <option value="Neuroscience & AI">Neuroscience & AI</option>
-              <option value="Cognition & Creativity">Cognition & Creativity</option>
-            </select>
+            {isAddingCustomCluster ? (
+              <div className="flex items-center gap-1">
+                <input
+                  type="text"
+                  value={customClusterInput}
+                  onChange={(e) => setCustomClusterInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSaveCustomCluster()}
+                  placeholder="Nama kluster baru..."
+                  autoFocus
+                  className="w-36 bg-[var(--input-bg)] border border-cyan-500 rounded px-2 py-0.5 text-xs text-[var(--foreground)] focus:outline-none"
+                />
+                <button
+                  onClick={handleSaveCustomCluster}
+                  className="p-1 bg-cyan-600 hover:bg-cyan-500 rounded text-white"
+                  title="Simpan Kluster"
+                >
+                  <Check className="w-3 h-3" />
+                </button>
+                <button
+                  onClick={() => setIsAddingCustomCluster(false)}
+                  className="p-1 bg-transparent hover:bg-[var(--card-hover)] rounded text-[var(--muted)]"
+                  title="Batal"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ) : (
+              <select
+                value={activeNote.cluster}
+                onChange={(e) => {
+                  if (e.target.value === '__NEW_CUSTOM__') {
+                    setIsAddingCustomCluster(true);
+                  } else {
+                    updateNoteMutation.mutate({ id: activeNote.id, updates: { cluster: e.target.value } });
+                  }
+                }}
+                className="bg-[var(--input-bg)] border border-[var(--card-border)] rounded px-2 py-0.5 text-xs text-[var(--foreground)] focus:outline-none focus:border-cyan-500 transition"
+              >
+                {availableClusters.map((clusterName) => (
+                  <option key={clusterName} value={clusterName}>
+                    📁 {clusterName}
+                  </option>
+                ))}
+                <option value="__NEW_CUSTOM__">➕ + Tambah Kluster Baru...</option>
+              </select>
+            )}
           </div>
 
+          {/* Tags List */}
           <div className="flex flex-wrap items-center gap-1.5 ml-2">
             <Tag className="w-3.5 h-3.5 text-[var(--muted)]" />
             {activeNote.tags.map((tag) => (

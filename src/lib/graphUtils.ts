@@ -1,6 +1,5 @@
 import { Note, GraphData, GraphNode, GraphEdge, SynapticLink } from '@/types/zettel';
-import { CLUSTER_COLORS } from './initialData';
-import { discoverSynapticLinks } from './synapse';
+import { getClusterColor } from './clusterColors';
 
 export function computeGraphData(
   notes: Note[],
@@ -15,7 +14,7 @@ export function computeGraphData(
       searchQuery === '' ||
       n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       n.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      n.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()));
+      (n.tags || []).some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()));
 
     const matchesCluster =
       selectedCluster === null || n.cluster === selectedCluster;
@@ -69,7 +68,7 @@ export function computeGraphData(
     cluster: note.cluster,
     tags: note.tags,
     val: Math.max(4, Math.min(14, 4 + (degreeMap[note.id] || 0) * 1.5)),
-    color: CLUSTER_COLORS[note.cluster] || (isDark ? '#94a3b8' : '#475569'),
+    color: getClusterColor(note.cluster),
   }));
 
   return { nodes, links };

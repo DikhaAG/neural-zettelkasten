@@ -1,10 +1,10 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useZettelStore } from '@/lib/store';
 import { useNotes, useCreateNote } from '@/lib/hooks/useNotes';
 import { Plus, Search, Brain, Network, Sparkles } from 'lucide-react';
-import { CLUSTER_COLORS } from '@/lib/initialData';
+import { getClusterColor } from '@/lib/clusterColors';
 
 export default function NotesSidebar() {
   const {
@@ -19,7 +19,11 @@ export default function NotesSidebar() {
   const { data: notes = [] } = useNotes();
   const createNoteMutation = useCreateNote();
 
-  const clusters = ['PKM Methodology', 'Systems & Complexity', 'Neuroscience & AI', 'Cognition & Creativity'];
+  // Ekstraksi kluster unik secara dinamis dari catatan yang ada di database
+  const clusters = useMemo(() => {
+    const set = new Set(notes.map((n) => n.cluster).filter(Boolean));
+    return Array.from(set);
+  }, [notes]);
 
   const filteredNotes = notes.filter((n) => {
     const matchesSearch =
@@ -70,7 +74,7 @@ export default function NotesSidebar() {
           />
         </div>
 
-        {/* Cluster Filter Pills */}
+        {/* Cluster Filter Pills (100% Dynamic) */}
         <div className="flex flex-wrap gap-1 mt-2.5">
           <button
             onClick={() => setSelectedCluster(null)}
@@ -94,9 +98,9 @@ export default function NotesSidebar() {
             >
               <span
                 className="w-1.5 h-1.5 rounded-full"
-                style={{ backgroundColor: CLUSTER_COLORS[c] || '#94a3b8' }}
+                style={{ backgroundColor: getClusterColor(c) }}
               />
-              {c.split(' ')[0]}
+              {c.length > 15 ? c.slice(0, 15) + '…' : c}
             </button>
           ))}
         </div>
@@ -130,7 +134,7 @@ export default function NotesSidebar() {
                     </span>
                     <span
                       className="w-2 h-2 rounded-full"
-                      style={{ backgroundColor: CLUSTER_COLORS[note.cluster] || '#94a3b8' }}
+                      style={{ backgroundColor: getClusterColor(note.cluster) }}
                     />
                   </div>
                 </div>
