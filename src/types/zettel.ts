@@ -44,3 +44,4 @@ export interface GraphData {
 }
 
 export type ViewMode = 'split' | 'graph-only' | 'editor-only' | 'neural-chat';
+export type ThemeMode = 'dark' | 'light';

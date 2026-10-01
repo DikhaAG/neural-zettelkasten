@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Note, GraphData, GraphNode, GraphEdge, ViewMode, SynapticLink } from '@/types/zettel';
+import { Note, GraphData, GraphNode, GraphEdge, ViewMode, SynapticLink, ThemeMode } from '@/types/zettel';
 import { INITIAL_NOTES, CLUSTER_COLORS } from './initialData';
 import { extractExplicitLinkIds } from './wikilinks';
 import { discoverSynapticLinks } from './synapse';
@@ -9,6 +9,7 @@ interface ZettelState {
   activeNoteId: string | null;
   selectedNodeIds: string[]; // For multi-node AI synthesis
   viewMode: ViewMode;
+  theme: ThemeMode;
   searchQuery: string;
   selectedCluster: string | null;
   synapticThreshold: number;
@@ -19,6 +20,8 @@ interface ZettelState {
   // Actions
   setActiveNoteId: (id: string | null) => void;
   setViewMode: (mode: ViewMode) => void;
+  setTheme: (theme: ThemeMode) => void;
+  toggleTheme: (event?: React.MouseEvent) => void;
   setSearchQuery: (query: string) => void;
   setSelectedCluster: (cluster: string | null) => void;
   setSynapticThreshold: (threshold: number) => void;
@@ -39,6 +42,7 @@ export const useZettelStore = create<ZettelState>((set, get) => ({
   activeNoteId: INITIAL_NOTES[0].id,
   selectedNodeIds: [],
   viewMode: 'split',
+  theme: 'dark',
   searchQuery: '',
   selectedCluster: null,
   synapticThreshold: 0.18,
@@ -48,6 +52,60 @@ export const useZettelStore = create<ZettelState>((set, get) => ({
 
   setActiveNoteId: (id) => set({ activeNoteId: id }),
   setViewMode: (mode) => set({ viewMode: mode }),
+  
+  setTheme: (theme) => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.setAttribute('data-theme', theme);
+      if (theme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    }
+    set({ theme });
+  },
+
+  toggleTheme: (event) => {
+    const currentTheme = get().theme;
+    const nextTheme: ThemeMode = currentTheme === 'dark' ? 'light' : 'dark';
+
+    // 2026 Circular View Transition animation if supported by browser
+    if (
+      typeof document !== 'undefined' &&
+      'startViewTransition' in document &&
+      event
+    ) {
+      const x = event.clientX;
+      const y = event.clientY;
+      const endRadius = Math.hypot(
+        Math.max(x, window.innerWidth - x),
+        Math.max(y, window.innerHeight - y)
+      );
+
+      const transition = (document as any).startViewTransition(() => {
+        get().setTheme(nextTheme);
+      });
+
+      transition.ready.then(() => {
+        document.documentElement.animate(
+          {
+            clipPath: [
+              `circle(0px at ${x}px ${y}px)`,
+              `circle(${endRadius}px at ${x}px ${y}px)`,
+            ],
+          },
+          {
+            duration: 450,
+            easing: 'cubic-bezier(0.25, 1, 0.5, 1)',
+            pseudoElement: '::view-transition-new(root)',
+          }
+        );
+      });
+    } else {
+      get().setTheme(nextTheme);
+    }
+  },
+
   setSearchQuery: (query) => set({ searchQuery: query }),
   setSelectedCluster: (cluster) => set({ selectedCluster: cluster }),
   
@@ -137,7 +195,8 @@ export const useZettelStore = create<ZettelState>((set, get) => ({
   },
 
   getGraphData: () => {
-    const { notes, synapticLinks, searchQuery, selectedCluster } = get();
+    const { notes, synapticLinks, searchQuery, selectedCluster, theme } = get();
+    const isDark = theme === 'dark';
 
     // Filter notes by search and cluster
     const filteredNotes = notes.filter((n) => {
@@ -163,7 +222,7 @@ export const useZettelStore = create<ZettelState>((set, get) => ({
 
     const links: GraphEdge[] = [];
 
-    // 1. Explicit Links (Solid Cyan)
+    // 1. Explicit Links (Cyan)
     for (const note of filteredNotes) {
       for (const targetId of note.explicitLinks) {
         if (filteredNoteIds.has(targetId)) {
@@ -172,14 +231,14 @@ export const useZettelStore = create<ZettelState>((set, get) => ({
             source: note.id,
             target: targetId,
             type: 'explicit',
-            color: '#38bdf8',
+            color: isDark ? '#38bdf8' : '#0284c7',
             dashed: false,
           });
         }
       }
     }
 
-    // 2. Synaptic Soft Links (Pulsing Violet)
+    // 2. Synaptic Soft Links (Violet)
     for (const syn of synapticLinks) {
       if (filteredNoteIds.has(syn.sourceId) && filteredNoteIds.has(syn.targetId)) {
         links.push({
@@ -187,7 +246,7 @@ export const useZettelStore = create<ZettelState>((set, get) => ({
           target: syn.targetId,
           type: 'synaptic',
           similarity: syn.similarity,
-          color: '#a855f7',
+          color: isDark ? '#a855f7' : '#9333ea',
           dashed: true,
         });
       }
@@ -199,7 +258,7 @@ export const useZettelStore = create<ZettelState>((set, get) => ({
       cluster: note.cluster,
       tags: note.tags,
       val: Math.max(4, Math.min(14, 4 + (degreeMap[note.id] || 0) * 1.5)),
-      color: CLUSTER_COLORS[note.cluster] || '#94a3b8',
+      color: CLUSTER_COLORS[note.cluster] || (isDark ? '#94a3b8' : '#475569'),
     }));
 
     return { nodes, links };

@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useZettelStore } from '@/lib/store';
-import { Sparkles, Brain, Wand2, MessageSquare, Send, CheckSquare, X, RefreshCw, Copy, Check } from 'lucide-react';
+import { Sparkles, Brain, Wand2, MessageSquare, Send, RefreshCw, Copy, Check } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import ReactMarkdown from 'react-markdown';
 
@@ -18,7 +18,7 @@ export default function SynapticCopilotPanel() {
     createNote,
   } = useZettelStore();
 
-  const [activeTab, setActiveTab] = useState<'synthesis' | 'chat' | 'serendipity'>('synthesis');
+  const [activeTab, setActiveTab] = useState<'synthesis' | 'chat'>('synthesis');
   const [chatQuery, setChatQuery] = useState('');
   const [chatHistory, setChatHistory] = useState<Array<{ role: 'user' | 'assistant'; text: string }>>([
     {
@@ -36,7 +36,6 @@ export default function SynapticCopilotPanel() {
     setIsAiSynthesizing(true);
     setSynthesisResult(null);
 
-    // Simulate AI stream synthesis
     setTimeout(() => {
       const titles = selectedNotes.map((n) => `**${n.title}** (\`[[${n.id}]]\`)`).join(' dan ');
       const synthesizedText = `### 🌟 Sintesis Konsep Muncul (*Emergent Synthesis*)\n\nPenggabungan antara ${titles} menghasilkan premis baru:\n\n1. **Dialektika Utama**: Terdapat konvergensi struktural di mana sifat atomik ide memungkinkan terbentuknya ruang laten semantik yang beroperasi menyerupai hukum plastisitas sinaptik Hebbian.\n2. **Hipotesis Baru**: *Dapatkah kita memperlakukan penomoran Luhmann sebagai koordinat topologis dalam ruang embedding multi-dimensi untuk navigasi intuisi AI?*\n\n> *Ide yang saling terhubung melahirkan lompatan kognitif di luar jumlah bagian-bagiannya.*`;
@@ -51,7 +50,6 @@ export default function SynapticCopilotPanel() {
     }, 1200);
   };
 
-  // Convert Synthesis Result into a New Atomic Note
   const handleSaveSynthesisAsNote = () => {
     if (!synthesisResult) return;
     createNote({
@@ -64,7 +62,6 @@ export default function SynapticCopilotPanel() {
     clearNodeSelection();
   };
 
-  // Send RAG Chat Message
   const handleSendChat = () => {
     if (!chatQuery.trim()) return;
     const userMsg = chatQuery;
@@ -74,7 +71,6 @@ export default function SynapticCopilotPanel() {
     setChatHistory(newHistory);
 
     setTimeout(() => {
-      // Find relevant notes
       const matchedNotes = notes.filter((n) =>
         n.title.toLowerCase().includes(userMsg.toLowerCase()) ||
         n.content.toLowerCase().includes(userMsg.toLowerCase()) ||
@@ -93,14 +89,14 @@ export default function SynapticCopilotPanel() {
   };
 
   return (
-    <div className="w-96 h-full flex flex-col bg-[#050b17] border-l border-slate-800/80 text-slate-200 select-text">
+    <div className="w-96 h-full flex flex-col bg-[var(--sidebar-bg)] border-l border-[var(--card-border)] text-[var(--foreground)] select-text transition-colors duration-300">
       {/* Header Tabs */}
-      <div className="flex items-center justify-between p-3 border-b border-slate-800 bg-slate-900/60">
-        <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
+      <div className="flex items-center justify-between p-3 border-b border-[var(--card-border)] bg-[var(--topbar-bg)]">
+        <div className="flex items-center gap-1 bg-[var(--input-bg)] p-1 rounded-lg border border-[var(--card-border)]">
           <button
             onClick={() => setActiveTab('synthesis')}
             className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition ${
-              activeTab === 'synthesis' ? 'bg-purple-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'
+              activeTab === 'synthesis' ? 'bg-purple-600 text-white shadow' : 'text-[var(--muted)] hover:text-[var(--foreground)]'
             }`}
           >
             <Wand2 className="w-3.5 h-3.5" />
@@ -109,7 +105,7 @@ export default function SynapticCopilotPanel() {
           <button
             onClick={() => setActiveTab('chat')}
             className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition ${
-              activeTab === 'chat' ? 'bg-cyan-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'
+              activeTab === 'chat' ? 'bg-cyan-600 text-white shadow' : 'text-[var(--muted)] hover:text-[var(--foreground)]'
             }`}
           >
             <MessageSquare className="w-3.5 h-3.5" />
@@ -117,7 +113,7 @@ export default function SynapticCopilotPanel() {
           </button>
         </div>
 
-        <div className="flex items-center gap-1 text-[11px] text-purple-400 font-mono">
+        <div className="flex items-center gap-1 text-[11px] text-purple-500 font-mono">
           <Sparkles className="w-3.5 h-3.5 animate-spin" style={{ animationDuration: '6s' }} />
           <span>AI Copilot</span>
         </div>
@@ -127,23 +123,23 @@ export default function SynapticCopilotPanel() {
       {activeTab === 'synthesis' && (
         <div className="flex-1 overflow-y-auto p-4 flex flex-col justify-between">
           <div className="space-y-4">
-            <div className="p-3.5 rounded-xl bg-purple-950/20 border border-purple-800/40 text-xs text-purple-200">
-              <h4 className="font-semibold flex items-center gap-1.5 text-purple-300 mb-1">
+            <div className="p-3.5 rounded-xl bg-purple-500/10 border border-purple-500/30 text-xs text-[var(--foreground)]">
+              <h4 className="font-semibold flex items-center gap-1.5 text-purple-600 dark:text-purple-300 mb-1">
                 <Brain className="w-4 h-4" /> Multi-Node Idea Synthesis
               </h4>
-              <p className="text-slate-400 text-[11px] leading-relaxed">
-                Pilih 2 atau lebih node pada graf (<span className="text-cyan-300 font-mono">Shift + Klik</span>) untuk menggabungkan perspektifnya menjadi wawasan baru.
+              <p className="text-[var(--muted)] text-[11px] leading-relaxed">
+                Pilih 2 atau lebih node pada graf (<span className="text-cyan-500 font-mono">Shift + Klik</span>) untuk menggabungkan perspektifnya menjadi wawasan baru.
               </p>
             </div>
 
             {/* Selected Nodes List */}
             <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs text-slate-400">
+              <div className="flex items-center justify-between text-xs text-[var(--muted)]">
                 <span>Catatan Terpilih ({selectedNodeIds.length})</span>
                 {selectedNodeIds.length > 0 && (
                   <button
                     onClick={clearNodeSelection}
-                    className="text-slate-500 hover:text-red-400 text-[11px] transition"
+                    className="text-[var(--muted)] hover:text-red-500 text-[11px] transition"
                   >
                     Reset Pilihan
                   </button>
@@ -151,19 +147,19 @@ export default function SynapticCopilotPanel() {
               </div>
 
               {selectedNotes.length === 0 ? (
-                <div className="p-6 border border-dashed border-slate-800 rounded-xl text-center text-slate-500 text-xs">
+                <div className="p-6 border border-dashed border-[var(--card-border)] rounded-xl text-center text-[var(--muted)] text-xs">
                   <p>Belum ada node yang dipilih.</p>
-                  <p className="text-[10px] mt-1 text-slate-600">Klik node di graf sambil menahan Shift</p>
+                  <p className="text-[10px] mt-1 text-[var(--muted)] opacity-75">Klik node di graf sambil menahan Shift</p>
                 </div>
               ) : (
                 <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto">
                   {selectedNotes.map((n) => (
                     <div
                       key={n.id}
-                      className="flex items-center justify-between p-2 rounded-lg bg-slate-900/90 border border-slate-800 text-xs"
+                      className="flex items-center justify-between p-2 rounded-lg bg-[var(--input-bg)] border border-[var(--card-border)] text-xs text-[var(--foreground)]"
                     >
-                      <span className="truncate text-slate-200">{n.title}</span>
-                      <span className="font-mono text-[10px] text-cyan-400 ml-2">{n.id}</span>
+                      <span className="truncate">{n.title}</span>
+                      <span className="font-mono text-[10px] text-cyan-600 dark:text-cyan-400 ml-2">{n.id}</span>
                     </div>
                   ))}
                 </div>
@@ -177,7 +173,7 @@ export default function SynapticCopilotPanel() {
               className={`w-full py-2.5 px-4 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition ${
                 selectedNotes.length >= 2 && !isAiSynthesizing
                   ? 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg shadow-purple-600/30 active:scale-95'
-                  : 'bg-slate-800/50 text-slate-500 cursor-not-allowed border border-slate-800'
+                  : 'bg-[var(--input-bg)] text-[var(--muted)] cursor-not-allowed border border-[var(--card-border)]'
               }`}
             >
               {isAiSynthesizing ? (
@@ -195,20 +191,20 @@ export default function SynapticCopilotPanel() {
 
             {/* Synthesis Result */}
             {synthesisResult && (
-              <div className="p-4 rounded-xl bg-slate-900/90 border border-purple-500/40 text-xs space-y-3">
-                <div className="prose prose-invert prose-xs">
+              <div className="p-4 rounded-xl bg-[var(--card)] border border-purple-500/40 text-xs space-y-3 shadow-md">
+                <div className="prose dark:prose-invert text-xs">
                   <ReactMarkdown>{synthesisResult}</ReactMarkdown>
                 </div>
-                <div className="pt-2 border-t border-slate-800 flex items-center justify-between">
+                <div className="pt-2 border-t border-[var(--card-border)] flex items-center justify-between">
                   <button
                     onClick={() => {
                       navigator.clipboard.writeText(synthesisResult);
                       setCopied(true);
                       setTimeout(() => setCopied(false), 2000);
                     }}
-                    className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-white"
+                    className="flex items-center gap-1 text-[11px] text-[var(--muted)] hover:text-[var(--foreground)]"
                   >
-                    {copied ? <Check className="w-3 h-3 text-green-400" /> : <Copy className="w-3 h-3" />}
+                    {copied ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
                     <span>{copied ? 'Tersalin' : 'Salin'}</span>
                   </button>
                   <button
@@ -237,8 +233,8 @@ export default function SynapticCopilotPanel() {
                 <div
                   className={`max-w-[85%] p-3 rounded-2xl text-xs leading-relaxed ${
                     msg.role === 'user'
-                      ? 'bg-cyan-600 text-white rounded-br-none'
-                      : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-bl-none'
+                      ? 'bg-cyan-600 text-white rounded-br-none shadow-sm'
+                      : 'bg-[var(--card)] border border-[var(--card-border)] text-[var(--foreground)] rounded-bl-none shadow-sm'
                   }`}
                 >
                   <ReactMarkdown>{msg.text}</ReactMarkdown>
@@ -248,15 +244,15 @@ export default function SynapticCopilotPanel() {
           </div>
 
           {/* Chat Input */}
-          <div className="p-3 border-t border-slate-800 bg-slate-900/40">
-            <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl p-1.5 focus-within:border-cyan-500">
+          <div className="p-3 border-t border-[var(--card-border)] bg-[var(--card)]">
+            <div className="flex items-center gap-2 bg-[var(--input-bg)] border border-[var(--card-border)] rounded-xl p-1.5 focus-within:border-cyan-500">
               <input
                 type="text"
                 value={chatQuery}
                 onChange={(e) => setChatQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSendChat()}
                 placeholder="Tanya seluruh Zettelkasten..."
-                className="flex-1 bg-transparent px-2 text-xs text-slate-200 focus:outline-none placeholder-slate-600"
+                className="flex-1 bg-transparent px-2 text-xs text-[var(--foreground)] focus:outline-none placeholder-[var(--muted)]"
               />
               <button
                 onClick={handleSendChat}

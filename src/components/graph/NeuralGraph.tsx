@@ -10,8 +10,8 @@ import { RefreshCw, ZoomIn, ZoomOut, Zap } from 'lucide-react';
 const ForceGraph2D = dynamic(() => import('react-force-graph-2d'), {
   ssr: false,
   loading: () => (
-    <div className="flex h-full w-full items-center justify-center text-cyan-400/60 font-mono text-sm">
-      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-cyan-400 mr-3"></div>
+    <div className="flex h-full w-full items-center justify-center text-cyan-500 font-mono text-sm">
+      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-cyan-500 mr-3"></div>
       Inisialisasi Neural Force Field...
     </div>
   ),
@@ -31,8 +31,10 @@ export default function NeuralGraph() {
     toggleNodeSelection,
     synapticThreshold,
     setSynapticThreshold,
+    theme,
   } = useZettelStore();
 
+  const isDark = theme === 'dark';
   const graphData = getGraphData();
 
   // Resize observer
@@ -85,19 +87,19 @@ export default function NeuralGraph() {
         ctx.beginPath();
         ctx.arc(node.x, node.y, radius * (isActive ? 2.2 : 1.6), 0, 2 * Math.PI, false);
         ctx.fillStyle = isActive
-          ? 'rgba(6, 182, 212, 0.35)'
+          ? isDark ? 'rgba(6, 182, 212, 0.35)' : 'rgba(2, 132, 199, 0.25)'
           : isSelected
-          ? 'rgba(168, 85, 247, 0.4)'
-          : 'rgba(255, 255, 255, 0.2)';
+          ? isDark ? 'rgba(168, 85, 247, 0.4)' : 'rgba(147, 51, 234, 0.3)'
+          : isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(15, 23, 42, 0.1)';
         ctx.fill();
       }
 
       // 2. Node Core Circle
       ctx.beginPath();
       ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
-      ctx.fillStyle = node.color || '#38bdf8';
-      ctx.shadowColor = node.color || '#38bdf8';
-      ctx.shadowBlur = isActive || isHovered ? 12 : 6;
+      ctx.fillStyle = node.color || (isDark ? '#38bdf8' : '#0284c7');
+      ctx.shadowColor = node.color || (isDark ? '#38bdf8' : '#0284c7');
+      ctx.shadowBlur = isActive || isHovered ? (isDark ? 12 : 6) : 3;
       ctx.fill();
       ctx.shadowBlur = 0; // reset
 
@@ -105,7 +107,7 @@ export default function NeuralGraph() {
       if (isActive || isSelected) {
         ctx.beginPath();
         ctx.arc(node.x, node.y, radius + 2, 0, 2 * Math.PI, false);
-        ctx.strokeStyle = isActive ? '#06b6d4' : '#c084fc';
+        ctx.strokeStyle = isActive ? (isDark ? '#06b6d4' : '#0284c7') : (isDark ? '#c084fc' : '#9333ea');
         ctx.lineWidth = 1.5 / globalScale;
         ctx.stroke();
       }
@@ -120,7 +122,7 @@ export default function NeuralGraph() {
         
         // Text background pill
         const textWidth = ctx.measureText(label).width;
-        ctx.fillStyle = 'rgba(3, 7, 18, 0.85)';
+        ctx.fillStyle = isDark ? 'rgba(3, 7, 18, 0.9)' : 'rgba(255, 255, 255, 0.95)';
         ctx.fillRect(
           node.x - textWidth / 2 - 3,
           node.y + radius + 4,
@@ -128,20 +130,22 @@ export default function NeuralGraph() {
           fontSize + 4
         );
 
-        ctx.fillStyle = isActive ? '#38bdf8' : '#e2e8f0';
+        ctx.fillStyle = isActive
+          ? (isDark ? '#38bdf8' : '#0284c7')
+          : (isDark ? '#e2e8f0' : '#1e293b');
         ctx.fillText(label, node.x, node.y + radius + fontSize / 2 + 5);
       }
     },
-    [activeNoteId, selectedNodeIds, hoveredNode]
+    [activeNoteId, selectedNodeIds, hoveredNode, isDark]
   );
 
   return (
-    <div ref={containerRef} className="relative h-full w-full bg-[#030712] overflow-hidden select-none">
+    <div ref={containerRef} className="relative h-full w-full bg-[var(--graph-bg)] overflow-hidden select-none transition-colors duration-300">
       {/* Background Neural Grid Pattern */}
       <div 
-        className="absolute inset-0 pointer-events-none opacity-20"
+        className="absolute inset-0 pointer-events-none opacity-40"
         style={{
-          backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0)',
+          backgroundImage: `radial-gradient(circle at 1px 1px, ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(15,23,42,0.08)'} 1px, transparent 0)`,
           backgroundSize: '32px 32px'
         }}
       />
@@ -151,6 +155,7 @@ export default function NeuralGraph() {
         width={dimensions.width}
         height={dimensions.height}
         graphData={graphData}
+        backgroundColor={isDark ? '#030712' : '#f8fafc'}
         nodeLabel={(n: any) => `${n.title} (${n.cluster})`}
         nodeCanvasObject={renderCustomNode}
         nodePointerAreaPaint={(node: any, color: string, ctx: CanvasRenderingContext2D) => {
@@ -161,13 +166,13 @@ export default function NeuralGraph() {
         }}
         onNodeClick={handleNodeClick}
         onNodeHover={(node: any) => setHoveredNode(node || null)}
-        linkColor={(link: any) => link.color || '#38bdf8'}
+        linkColor={(link: any) => link.color || (isDark ? '#38bdf8' : '#0284c7')}
         linkWidth={(link: any) => (link.type === 'explicit' ? 1.5 : 0.8)}
         linkLineDash={(link: any) => (link.type === 'synaptic' ? [4, 3] : null)}
         linkDirectionalParticles={(link: any) => (link.type === 'synaptic' ? 2 : 0)}
         linkDirectionalParticleSpeed={0.006}
         linkDirectionalParticleWidth={2}
-        linkDirectionalParticleColor={() => '#c084fc'}
+        linkDirectionalParticleColor={() => (isDark ? '#c084fc' : '#9333ea')}
         cooldownTicks={100}
         d3AlphaDecay={0.02}
         d3VelocityDecay={0.3}
@@ -175,24 +180,24 @@ export default function NeuralGraph() {
 
       {/* Floating Control HUD */}
       <div className="absolute top-4 right-4 flex flex-col gap-2 z-10">
-        <div className="flex items-center gap-1.5 p-1.5 rounded-xl glass-panel text-slate-300">
+        <div className="flex items-center gap-1.5 p-1.5 rounded-xl glass-panel text-[var(--foreground)] shadow-sm">
           <button
             onClick={() => fgRef.current?.zoom(fgRef.current.zoom() * 1.3, 300)}
-            className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-300 hover:text-cyan-400 transition"
+            className="p-1.5 hover:bg-[var(--card-hover)] rounded-lg text-[var(--muted)] hover:text-cyan-500 transition"
             title="Zoom In"
           >
             <ZoomIn className="w-4 h-4" />
           </button>
           <button
             onClick={() => fgRef.current?.zoom(fgRef.current.zoom() / 1.3, 300)}
-            className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-300 hover:text-cyan-400 transition"
+            className="p-1.5 hover:bg-[var(--card-hover)] rounded-lg text-[var(--muted)] hover:text-cyan-500 transition"
             title="Zoom Out"
           >
             <ZoomOut className="w-4 h-4" />
           </button>
           <button
             onClick={() => fgRef.current?.zoomToFit(400, 30)}
-            className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-300 hover:text-cyan-400 transition"
+            className="p-1.5 hover:bg-[var(--card-hover)] rounded-lg text-[var(--muted)] hover:text-cyan-500 transition"
             title="Reset View"
           >
             <RefreshCw className="w-4 h-4" />
@@ -200,12 +205,12 @@ export default function NeuralGraph() {
         </div>
 
         {/* Synaptic Sensitivity Slider */}
-        <div className="p-2.5 rounded-xl glass-panel text-xs text-slate-300 w-52">
+        <div className="p-2.5 rounded-xl glass-panel text-xs text-[var(--foreground)] w-52 shadow-sm">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="flex items-center gap-1 text-purple-400 font-medium">
+            <span className="flex items-center gap-1 text-purple-500 font-medium">
               <Zap className="w-3.5 h-3.5" /> Sinapsis AI
             </span>
-            <span className="font-mono text-[10px] text-slate-400">
+            <span className="font-mono text-[10px] text-[var(--muted)]">
               {Math.round(synapticThreshold * 100)}% Match
             </span>
           </div>
@@ -216,9 +221,9 @@ export default function NeuralGraph() {
             step="0.01"
             value={synapticThreshold}
             onChange={(e) => setSynapticThreshold(parseFloat(e.target.value))}
-            className="w-full accent-purple-500 cursor-pointer h-1.5 bg-slate-800 rounded-lg"
+            className="w-full accent-purple-600 cursor-pointer h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg"
           />
-          <div className="flex justify-between text-[9px] text-slate-500 mt-1">
+          <div className="flex justify-between text-[9px] text-[var(--muted)] mt-1">
             <span>Banyak Sinapsis</span>
             <span>Ketat</span>
           </div>
@@ -226,17 +231,17 @@ export default function NeuralGraph() {
       </div>
 
       {/* Legend & Hint Overlay */}
-      <div className="absolute bottom-4 left-4 flex flex-wrap items-center gap-4 text-xs text-slate-400 glass-panel px-3 py-2 rounded-xl">
+      <div className="absolute bottom-4 left-4 flex flex-wrap items-center gap-4 text-xs text-[var(--muted)] glass-panel px-3 py-2 rounded-xl shadow-sm">
         <div className="flex items-center gap-1.5">
-          <span className="w-3 h-0.5 bg-cyan-400 rounded"></span>
-          <span>Hard Link (Manual)</span>
+          <span className="w-3 h-0.5 bg-cyan-500 rounded"></span>
+          <span className="text-[var(--foreground)]">Hard Link</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="w-3 h-0.5 border-dashed border-t-2 border-purple-400"></span>
-          <span>Synaptic Link (AI Latent)</span>
+          <span className="w-3 h-0.5 border-dashed border-t-2 border-purple-500"></span>
+          <span className="text-[var(--foreground)]">Synaptic Link (AI)</span>
         </div>
-        <div className="text-slate-500 border-l border-slate-700 pl-3">
-          <span className="text-cyan-300 font-mono">Shift + Klik</span> multi-node untuk Sintesis AI
+        <div className="border-l border-[var(--card-border)] pl-3">
+          <span className="text-cyan-600 dark:text-cyan-300 font-mono">Shift + Klik</span> multi-node untuk Sintesis
         </div>
       </div>
     </div>
