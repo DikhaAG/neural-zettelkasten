@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useZettelStore } from '@/lib/store';
 import { useNotes, useUpdateNote, useDeleteNote } from '@/lib/hooks/useNotes';
 import { Note } from '@/types/zettel';
@@ -13,7 +13,8 @@ import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { 
   FileText, Link2, Tag, Folder, Plus, Trash2, 
-  Eye, Edit3, Split, ArrowUpRight, Sparkles, Check, X
+  Eye, Edit3, Split, ArrowUpRight, Sparkles, Check, X,
+  CloudCheck, Loader2
 } from 'lucide-react';
 
 export default function AtomicEditor() {
@@ -33,10 +34,66 @@ export default function AtomicEditor() {
   const [isAddingCustomCluster, setIsAddingCustomCluster] = useState(false);
   const [customClusterInput, setCustomClusterInput] = useState('');
 
+  // Local state for smooth editing without cursor jumping
+  const [title, setTitle] = useState('');
+  const [content, setContent] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   const activeNote = useMemo(
     () => notes.find((n) => n.id === activeNoteId) || (notes.length > 0 ? notes[0] : null),
     [notes, activeNoteId]
   );
+
+  // Sync local title & content when active note changes
+  useEffect(() => {
+    if (activeNote) {
+      setTitle(activeNote.title);
+      setContent(activeNote.content);
+    }
+  }, [activeNote?.id]);
+
+  // Clean up debounce on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleTitleChange = (newTitle: string) => {
+    setTitle(newTitle);
+    if (!activeNote) return;
+    setIsSaving(true);
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = setTimeout(() => {
+      updateNoteMutation.mutate({ id: activeNote.id, updates: { title: newTitle } }, {
+        onSettled: () => setIsSaving(false)
+      });
+    }, 450);
+  };
+
+  const handleContentChange = (newContent: string) => {
+    setContent(newContent);
+    if (!activeNote) return;
+    setIsSaving(true);
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = setTimeout(() => {
+      updateNoteMutation.mutate({ id: activeNote.id, updates: { content: newContent } }, {
+        onSettled: () => setIsSaving(false)
+      });
+    }, 450);
+  };
+
+  const handleFlushSave = () => {
+    if (saveTimeoutRef.current && activeNote) {
+      clearTimeout(saveTimeoutRef.current);
+      updateNoteMutation.mutate({ id: activeNote.id, updates: { title, content } }, {
+        onSettled: () => setIsSaving(false)
+      });
+    }
+  };
 
   // Dynamic extraction of unique clusters from all notes
   const availableClusters = useMemo(() => {
@@ -121,8 +178,8 @@ export default function AtomicEditor() {
   };
 
   // Convert [[ID]] or [[Title]] into clickable links in Markdown
-  const renderInteractiveMarkdown = (content: string) => {
-    return content.replace(/\[\[(.*?)\]\]/g, (match, noteTarget) => {
+  const renderInteractiveMarkdown = (rawContent: string) => {
+    return rawContent.replace(/\[\[(.*?)\]\]/g, (match, noteTarget) => {
       const targetNote = notes.find(
         (n) => n.id.toLowerCase() === noteTarget.toLowerCase() || n.title.toLowerCase() === noteTarget.toLowerCase()
       );
@@ -138,7 +195,7 @@ export default function AtomicEditor() {
       {/* Top Meta Bar */}
       <div className="p-4 border-b border-[var(--card-border)] bg-[var(--card)] flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <span className="font-mono text-xs px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 font-semibold border border-cyan-500/30">
               {activeNote.id}
             </span>
@@ -149,6 +206,21 @@ export default function AtomicEditor() {
               />
               <span className="font-medium text-[var(--foreground)]">{activeNote.cluster}</span>
             </span>
+
+            {/* Auto-save status indicator */}
+            <div className="flex items-center gap-1 text-[11px] text-[var(--muted)] ml-2">
+              {isSaving || updateNoteMutation.isPending ? (
+                <span className="flex items-center gap-1 text-cyan-500 font-mono text-[10px]">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  <span>Menyimpan...</span>
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 text-emerald-500/80 font-mono text-[10px]">
+                  <Check className="w-3 h-3" />
+                  <span>Tersimpan</span>
+                </span>
+              )}
+            </div>
           </div>
 
           {/* View Mode Switcher & Delete */}
@@ -206,8 +278,9 @@ export default function AtomicEditor() {
         {/* Title Input */}
         <input
           type="text"
-          value={activeNote.title}
-          onChange={(e) => updateNoteMutation.mutate({ id: activeNote.id, updates: { title: e.target.value } })}
+          value={title}
+          onChange={(e) => handleTitleChange(e.target.value)}
+          onBlur={handleFlushSave}
           placeholder="Judul Catatan Atomik..."
           className="w-full bg-transparent text-lg font-bold text-[var(--foreground)] placeholder-[var(--muted)] focus:outline-none focus:ring-0"
         />
@@ -320,8 +393,9 @@ export default function AtomicEditor() {
         {(editorMode === 'edit' || editorMode === 'split') && (
           <div className={`h-full flex flex-col ${editorMode === 'split' ? 'w-1/2 border-r border-[var(--card-border)]' : 'w-full'}`}>
             <textarea
-              value={activeNote.content}
-              onChange={(e) => updateNoteMutation.mutate({ id: activeNote.id, updates: { content: e.target.value } })}
+              value={content}
+              onChange={(e) => handleContentChange(e.target.value)}
+              onBlur={handleFlushSave}
               placeholder="Tulis ide atomik di sini... Ketik [[ID-Catatan]] untuk menautkan gagasan."
               className="flex-1 w-full p-6 bg-transparent text-[var(--foreground)] font-mono text-sm leading-relaxed resize-none focus:outline-none placeholder-[var(--muted)]"
             />
@@ -360,7 +434,7 @@ export default function AtomicEditor() {
                   },
                 }}
               >
-                {renderInteractiveMarkdown(activeNote.content)}
+                {renderInteractiveMarkdown(content)}
               </ReactMarkdown>
             </div>
           </div>
