@@ -1,0 +1,42 @@
+[
+  {
+    "id": "20261001-001",
+    "title": "Prinsip Atomisitas Zettelkasten",
+    "content": "Setiap catatan Zettelkasten hanya boleh memuat **satu gagasan tunggal** (atomic thought). Dengan menjaga catatan tetap atomik, ide-ide dapat digabungkan kembali secara fleksibel seperti blok lego konseptual. Ini terhubung erat dengan [[20261001-002]].",
+    "tags": ["pkm", "zettelkasten", "epistemology"],
+    "cluster": "PKM Methodology",
+    "explicitLinks": ["20261001-002"]
+  },
+  {
+    "id": "20261001-002",
+    "title": "Emergent Properties dalam Jaringan Ide",
+    "content": "Ketika catatan-catatan atomik saling bertaut tanpa hierarki ketat (heterarchy), wawasan baru yang tak terduga akan muncul (*emergent properties*). Hal ini analog dengan bagaimana kesadaran muncul dari interaksi miliaran neuron sederhana [[20261001-003]].",
+    "tags": ["emergence", "complexity", "neural-networks"],
+    "cluster": "Systems & Complexity",
+    "explicitLinks": ["20261001-003"]
+  },
+  {
+    "id": "20261001-003",
+    "title": "Hebbian Learning: Neurons That Fire Together Wire Together",
+    "content": "Hukum Hebb menyatakan bahwa aktivasi simultan antar sel saraf memperkuat koneksi sinaptik di antara keduanya. Dalam Zettelkasten, ketika dua ide sering dipanggil bersama dalam argumen yang sama, terbentuk 'sinapsis buatan' [[20261001-004]].",
+    "tags": ["neuroscience", "learning", "synapse"],
+    "cluster": "Neuroscience & AI",
+    "explicitLinks": ["20261001-004"]
+  },
+  {
+    "id": "20261001-004",
+    "title": "Vector Embeddings sebagai Ruang Konseptual Laten",
+    "content": "Model AI merepresentasikan teks ke dalam ruang vektor berdimensi tinggi (latent space). Jarak kosinus (cosine distance) antar vektor merefleksikan kedekatan semantik. Ini memungkinkan penemuan tautan implisit antar catatan [[20261001-005]].",
+    "tags": ["ai", "embeddings", "vector-search"],
+    "cluster": "Neuroscience & AI",
+    "explicitLinks": ["20261001-005"]
+  },
+  {
+    "id": "20261001-005",
+    "title": "Serendipity Engine: Menghubungkan Ide Asosiatif",
+    "content": "Kekuatan terbesar sistem berpikir eksternal (Second Brain) bukan sekadar menyimpan ingatan, melainkan menciptakan kejutan kognitif (*serendipity*). AI berperan sebagai stimulator asosiasi bebas yang mempertemukan domain berbeda [[20261001-001]].",
+    "tags": ["creativity", "cognition", "serendipity"],
+    "cluster": "Cognition & Creativity",
+    "explicitLinks": ["20261001-001"]
+  }
+]
